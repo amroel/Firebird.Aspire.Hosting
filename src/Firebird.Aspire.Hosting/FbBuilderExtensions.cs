@@ -32,6 +32,33 @@ public static class FbBuilderExtensions
 			.WithImageRegistry(FirebirdContainerImageTags.Registry);
 	}
 
+	public static IResourceBuilder<FbServerResource> WithUser
+	(
+		this IResourceBuilder<FbServerResource> builder,
+		string user
+	) => builder.WithEnvironment("FIREBIRD_USER", user);
+
+	public static IResourceBuilder<FbServerResource> WithPassword
+	(
+		this IResourceBuilder<FbServerResource> builder,
+		string password
+	) => builder.WithEnvironment("FIREBIRD_PASSWORD", password);
+
+	public static IResourceBuilder<FbServerResource> WithRootPassword
+	(
+		this IResourceBuilder<FbServerResource> builder,
+		string password
+	) => builder.WithEnvironment("FIREBIRD_ROOT_PASSWORD", password);
+
+	public static IResourceBuilder<FbServerResource> WithTimeZone
+	(
+		this IResourceBuilder<FbServerResource> builder,
+		string timeZone
+	) => builder.WithEnvironment("TZ", timeZone);
+
+	public static IResourceBuilder<FbServerResource> UseLegacyAuth(this IResourceBuilder<FbServerResource> builder)
+		=> builder.WithEnvironment("FIREBIRD_USE_LEGACY_AUTH", "true");
+
 	public static IResourceBuilder<FbDatabaseResource> AddDatabase
 	(
 		this IResourceBuilder<FbServerResource> builder,

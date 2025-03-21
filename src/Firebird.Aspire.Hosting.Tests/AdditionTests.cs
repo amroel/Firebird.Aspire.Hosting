@@ -6,7 +6,7 @@ namespace Firebird.Aspire.Hosting.Tests;
 public class AdditionTests
 {
 	[Fact]
-	public void AddsGeneratedPasswordParameterWithUserSecretsParameterDefaultInRunMode()
+	public void AddsGeneratedPasswordParameterWithUserSecretsParameterDefault()
 	{
 		IDistributedApplicationBuilder builder = DistributedApplication.CreateBuilder();
 
@@ -94,5 +94,166 @@ public class AdditionTests
 			.Should()
 			.Be("{firebird.connectionString};Database=testDb");
 		dbConnectionString.Should().Be($"{fbConnectionString};Database=testDb");
+	}
+
+	[Fact]
+	public void ThrowsWhenAddingIdenticalDatabases()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		IResourceBuilder<FbServerResource> firebird = appBuilder.AddFirebird("firebird");
+		firebird.AddDatabase("db");
+
+		Action act = () => firebird.AddDatabase("db");
+		act.Should().ThrowExactly<DistributedApplicationException>();
+	}
+
+	[Fact]
+	public void ThrowsWhenAddingIdenticalDatabasesToDifferentServers()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder.AddFirebird("firebird1")
+			.AddDatabase("db");
+
+		IResourceBuilder<FbServerResource> db = appBuilder.AddFirebird("firebird2");
+		Action act = () => db.AddDatabase("db");
+		act.Should().ThrowExactly<DistributedApplicationException>();
+	}
+
+	[Fact]
+	public void AddsDatabasesWithDifferentNamesToSingleServer()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		IResourceBuilder<FbServerResource> firebird = appBuilder.AddFirebird("firebird");
+
+		IResourceBuilder<FbDatabaseResource> db1 = firebird.AddDatabase("db1", "customers1");
+		IResourceBuilder<FbDatabaseResource> db2 = firebird.AddDatabase("db2", "customers2");
+
+		db1.Resource.DatabaseName.Should().Be("customers1");
+		db2.Resource.DatabaseName.Should().Be("customers2");
+
+		db1.Resource.ConnectionStringExpression.ValueExpression
+			.Should().Be("{firebird.connectionString};Database=customers1");
+		db2.Resource.ConnectionStringExpression.ValueExpression
+			.Should().Be("{firebird.connectionString};Database=customers2");
+	}
+
+	[Fact]
+	public void AddsSameDatabasesWithDifferentNamesToMultipleServers()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		IResourceBuilder<FbDatabaseResource> db1 = appBuilder.AddFirebird("firebird1")
+			.AddDatabase("db1", "imports");
+
+		IResourceBuilder<FbDatabaseResource> db2 = appBuilder.AddFirebird("firebird2")
+			.AddDatabase("db2", "imports");
+
+		db1.Resource.DatabaseName.Should().Be("imports");
+		db2.Resource.DatabaseName.Should().Be("imports");
+
+		db1.Resource.ConnectionStringExpression.ValueExpression.Should().Be("{firebird1.connectionString};Database=imports");
+		db2.Resource.ConnectionStringExpression.ValueExpression.Should().Be("{firebird2.connectionString};Database=imports");
+	}
+
+	[Fact]
+	public async Task WithUserAddsEnvironmentVariable()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder
+			.AddFirebird("firebird")
+			.WithUser("Bob");
+
+		using DistributedApplication app = appBuilder.Build();
+		DistributedApplicationModel appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+		FbServerResource? firebirdResource = appModel.Resources.OfType<FbServerResource>().SingleOrDefault();
+		firebirdResource.Should().NotBeNull();
+		Dictionary<string, string> envVars = await firebirdResource.GetEnvironmentVariableValuesAsync();
+
+		envVars.Should().ContainKey("FIREBIRD_USER");
+		envVars["FIREBIRD_USER"].Should().Be("Bob");
+	}
+
+	[Fact]
+	public async Task WithPasswordAddsEnvironmentVariable()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder.AddFirebird("firebird")
+			.WithPassword("secret");
+
+		using DistributedApplication app = appBuilder.Build();
+		DistributedApplicationModel appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+		FbServerResource? firebirdResource = appModel.Resources.OfType<FbServerResource>().SingleOrDefault();
+		firebirdResource.Should().NotBeNull();
+		Dictionary<string, string> envVars = await firebirdResource.GetEnvironmentVariableValuesAsync();
+
+		envVars.Should().ContainKey("FIREBIRD_PASSWORD");
+		envVars["FIREBIRD_PASSWORD"].Should().Be("secret");
+	}
+
+	[Fact]
+	public async Task WithRootPasswordAddsEnvironmentVariable()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder
+			.AddFirebird("firebird")
+			.WithRootPassword("very_secret");
+
+		using DistributedApplication app = appBuilder.Build();
+		DistributedApplicationModel appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+		FbServerResource? firebirdResource = appModel.Resources.OfType<FbServerResource>().SingleOrDefault();
+		firebirdResource.Should().NotBeNull();
+		Dictionary<string, string> envVars = await firebirdResource.GetEnvironmentVariableValuesAsync();
+
+		envVars.Should().ContainKey("FIREBIRD_ROOT_PASSWORD");
+		envVars["FIREBIRD_ROOT_PASSWORD"].Should().Be("very_secret");
+	}
+
+	[Fact]
+	public async Task WithTimeZoneAddsEnvironmentVariable()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder
+			.AddFirebird("firebird")
+			.WithTimeZone("Europe/Berlin");
+
+		using DistributedApplication app = appBuilder.Build();
+		DistributedApplicationModel appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+		FbServerResource? firebirdResource = appModel.Resources.OfType<FbServerResource>().SingleOrDefault();
+		firebirdResource.Should().NotBeNull();
+		Dictionary<string, string> envVars = await firebirdResource.GetEnvironmentVariableValuesAsync();
+
+		envVars.Should().ContainKey("TZ");
+		envVars["TZ"].Should().Be("Europe/Berlin");
+	}
+
+	[Fact]
+	public async Task UseLegacyAuthAddsEnvironmentVariable()
+	{
+		IDistributedApplicationBuilder appBuilder = DistributedApplication.CreateBuilder();
+
+		appBuilder
+			.AddFirebird("firebird")
+			.UseLegacyAuth();
+
+		using DistributedApplication app = appBuilder.Build();
+		DistributedApplicationModel appModel = app.Services.GetRequiredService<DistributedApplicationModel>();
+
+		FbServerResource? firebirdResource = appModel.Resources.OfType<FbServerResource>().SingleOrDefault();
+		firebirdResource.Should().NotBeNull();
+		Dictionary<string, string> envVars = await firebirdResource.GetEnvironmentVariableValuesAsync();
+
+		envVars.Should().ContainKey("FIREBIRD_USE_LEGACY_AUTH");
+		envVars["FIREBIRD_USE_LEGACY_AUTH"].Should().Be("true");
 	}
 }
