@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Solution Items/" Id="8ec462fd-d22e-90a8-e5ce-7e832ba40c5d">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="Firebird.Aspire.Hosting.Tests/Firebird.Aspire.Hosting.Tests.csproj" Id="3479f84b-b757-4807-a3d3-b2ad0a87c5b7" />
+  <Project Path="Firebird.Aspire.Hosting/Firebird.Aspire.Hosting.csproj" />
+</Solution>
